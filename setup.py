@@ -6,7 +6,7 @@ import subprocess
 from setuptools import setup, Extension
 from build_scripts import get_pybind_include, BuildExt
 
-__version__ = "0.0.1"
+__version__ = "1.0.0-alpha"
 
 includes = [get_pybind_include(), get_pybind_include(user=True), "eigen-3.4.0"]
 
@@ -21,13 +21,10 @@ ext_modules = [
 ]
 
 setup(
-    name="accord-reproducibility",
+    name="accord",
     version=__version__,
-    author="Joshua Bang",
-    author_email="joshuaybang@gmail.com",
-    url="https://github.com/joshuaybang/accord-reproducibility",
-    description="Reproducibility for the ACCORD simulations",
-    long_description="",
+    url="https://github.com/comp-stat/ACCORD",
+    description="Python-based CLI application for ACCORD",
     ext_modules=ext_modules,
     install_requires=[
         "pybind11>=2.2",  # needs to be updated

@@ -17,7 +17,9 @@ We recommend using a Python virtual environment such as venv.
 
 After activating the environment, install the package using the following command:
 ```bash
-pip install git+https://github.com/comp-stat/ACCORD.git
+git clone git+https://github.com/comp-stat/ACCORD.git accord
+cd accord
+pip install -e .
 ```
 
 How to Run

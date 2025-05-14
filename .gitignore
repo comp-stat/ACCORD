@@ -1,0 +1,12 @@
+*.so
+*.o
+MANIFEST
+*.py[cod]
+*.egg-info
+.DS_Store
+_build
+_generate
+build
+var
+mason_packages
+.ipynb_checkpoints/

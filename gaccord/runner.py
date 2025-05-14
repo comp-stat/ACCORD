@@ -7,7 +7,9 @@ from pathlib import Path
 from importlib.resources import files
 
 assay_by_oid = {}
-with files("gaccord").joinpath("OLINKprot_meta_data.txt").open("r", encoding="utf-8")  as file:
+with files("gaccord").joinpath("OLINKprot_meta_data.txt").open(
+    "r", encoding="utf-8"
+) as file:
     reader = csv.DictReader(file, delimiter="\t")
     for row in reader:
         olink_id = row["OlinkID"]

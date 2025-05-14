@@ -37,7 +37,7 @@ setup(
     ],
     cmdclass={"build_ext": BuildExt},
     zip_safe=False,
-    packages=find_packages(exclude=['data*', 'tests*']),
+    packages=find_packages(exclude=["data*", "tests*"]),
     include_package_data=True,
     entry_points={
         "console_scripts": [

@@ -14,12 +14,14 @@ Installation
 ---------------
 
 We recommend using a Python virtual environment such as venv.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
 After activating the environment, install the package using the following command:
 ```bash
-git clone git+https://github.com/comp-stat/ACCORD.git accord
-cd accord
-pip install -e .
+pip install git+https://github.com/comp-stat/ACCORD.git@v1.0.0-alpha
 ```
 
 How to Run
@@ -27,12 +29,12 @@ How to Run
 
 Get options using the following command:
 ```bash
-python -m gaccord.cli --help
+accord --help
 ```
 
-Example:
+Example command:
 ```bash
-python -m gaccord.cli --input-file data/example.csv --output-file out.csv
+accord --input-file input.csv --output-file output.csv
 ```
 
 Directory Structure

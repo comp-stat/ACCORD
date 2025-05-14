@@ -41,7 +41,7 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "gaccord=gaccord.cli:main",
+            "accord=gaccord.cli:main",
         ],
     },
 )

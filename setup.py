@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import subprocess
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from build_scripts import get_pybind_include, BuildExt
 
 __version__ = "1.0.0-alpha"
@@ -37,9 +37,11 @@ setup(
     ],
     cmdclass={"build_ext": BuildExt},
     zip_safe=False,
+    packages=find_packages(exclude=['data*', 'tests*']),
+    include_package_data=True,
     entry_points={
         "console_scripts": [
-            "gaccord=gaccord.cli:main",
+            "accord=gaccord.cli:main",
         ],
     },
 )

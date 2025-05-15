@@ -6,7 +6,7 @@ import subprocess
 from setuptools import setup, Extension, find_packages
 from build_scripts import get_pybind_include, BuildExt
 
-__version__ = "1.0.0-alpha"
+__version__ = "1.0.0"
 
 includes = [get_pybind_include(), get_pybind_include(user=True), "eigen-3.4.0"]
 

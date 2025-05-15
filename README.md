@@ -21,7 +21,7 @@ source .venv/bin/activate
 
 After activating the environment, install the package using the following command:
 ```bash
-pip install git+https://github.com/comp-stat/ACCORD.git@v1.0.0-alpha
+pip install git+https://github.com/comp-stat/ACCORD.git@v1.0.0
 ```
 
 How to Run

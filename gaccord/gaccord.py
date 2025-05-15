@@ -282,7 +282,9 @@ class GraphicalAccord:
 
         for lam1 in self.lam1_values:
             for lam2 in self.lam2_values:
-                print(f'[ACCORD]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} ACCORD started with lam1: {lam1}, lam2: {lam2}')
+                print(
+                    f'[ACCORD]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} ACCORD started with lam1: {lam1}, lam2: {lam2}'
+                )
                 omega, hist = accord(
                     S,
                     X_init=initial,
@@ -299,7 +301,9 @@ class GraphicalAccord:
                     logging_interval=self.logging_interval,
                 )
                 if hist[-1][2] > self.epstol:
-                    print('[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.')
+                    print(
+                        '[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.'
+                    )
 
                 epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
                 self.epbic_values.append(epBIC_value)
@@ -310,7 +314,9 @@ class GraphicalAccord:
                     self.omega_ = omega
                     self.hist_ = hist
 
-        print(f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}, epBIC: {best_epBIC}")
+        print(
+            f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}, epBIC: {best_epBIC}"
+        )
 
         end_time = time.time()
         # Get final process memory

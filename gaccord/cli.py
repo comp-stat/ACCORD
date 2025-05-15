@@ -280,12 +280,18 @@ def main(
         for i, lam1 in enumerate(lam1_values):
             for j, lam2 in enumerate(lam2_values):
                 idx = i * len(lam2_values) + j
-                rows.append({'lambda1':lam1, 'lambda2': lam2, 'epBIC': model_accord.epbic_values[idx]})
+                rows.append(
+                    {
+                        "lambda1": lam1,
+                        "lambda2": lam2,
+                        "epBIC": model_accord.epbic_values[idx],
+                    }
+                )
         df_epBIC = pd.DataFrame(rows)
 
         epbic_path = str(Path(output_file).with_name(f"epBIC.csv"))
         df_epBIC.to_csv(epbic_path, index=False)
-        print(f'[LOG] epBIC table saved to {epbic_path}')
+        print(f"[LOG] epBIC table saved to {epbic_path}")
     except Exception as e:
         traceback.print_exc()
         click.echo(f"Error: {e}")

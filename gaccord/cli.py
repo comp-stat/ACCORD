@@ -1,6 +1,7 @@
 import click
 import pandas as pd
 import numpy as np
+from pathlib import Path
 import traceback
 from gaccord.runner import (
     read_data,
@@ -68,15 +69,15 @@ def validate_gamma(ctx, param, value):
 )
 @click.option(
     "--lam2",
-    type=float,
-    default=0.0,
+    type=str,
+    default="0.0",
     show_default=True,
-    help="The L2-regularization parameter",
+    help="Scalar value, space-separated list, or range (start:end:step)",
 )
 @click.option(
     "--gamma",
     type=float,
-    default=0.5,
+    default=0.2,
     show_default=True,
     callback=validate_gamma,
     help="Gamma parameter in the range (0,1].",
@@ -273,6 +274,18 @@ def main(
 
         omega = model_accord.omega_.toarray()
         save_data(header, omega, output_file)
+
+        # save epBIC tables
+        rows = []
+        for i, lam1 in enumerate(lam1_values):
+            for j, lam2 in enumerate(lam2_values):
+                idx = i * len(lam2_values) + j
+                rows.append({'lambda1':lam1, 'lambda2': lam2, 'epBIC': model_accord.epbic_values[idx]})
+        df_epBIC = pd.DataFrame(rows)
+
+        epbic_path = str(Path(output_file).with_name(f"epBIC.csv"))
+        df_epBIC.to_csv(epbic_path, index=False)
+        print(f'[LOG] epBIC table saved to {epbic_path}')
     except Exception as e:
         traceback.print_exc()
         click.echo(f"Error: {e}")

@@ -253,6 +253,7 @@ class GraphicalAccord:
         self.maxitr = maxitr
         self.penalize_diag = penalize_diag
         self.logging_interval = logging_interval
+        self.epbic_values = []
 
     def fit(self, X, y=None, initial=None):
         """
@@ -301,6 +302,7 @@ class GraphicalAccord:
                     print('[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.')
 
                 epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
+                self.epbic_values.append(epBIC_value)
                 if epBIC_value < best_epBIC:
                     best_epBIC = epBIC_value
                     best_lam1 = lam1
@@ -308,7 +310,7 @@ class GraphicalAccord:
                     self.omega_ = omega
                     self.hist_ = hist
 
-        print(f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}")
+        print(f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}, epBIC: {best_epBIC}")
 
         end_time = time.time()
         # Get final process memory

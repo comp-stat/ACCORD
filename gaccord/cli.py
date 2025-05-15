@@ -199,7 +199,7 @@ def main(
         lam2_values = parse_lam(lam2)
 
         # 설정된 옵션 출력
-        click.echo(f"Processing with the following parameters:")
+        click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
         click.echo(f"  Output File: {output_file}")
         click.echo(f"  Warm up File: {warmup_file}")
@@ -222,21 +222,21 @@ def main(
             # 컬럼이 포함될지 여부
             data = data[:, np.isin(header, include_cols_list)]
             header = header[np.isin(header, include_cols_list)]
-            click.echo(f"Including columns: {include_cols_list}")
+            click.echo(f"[LOG] Including columns: {include_cols_list}")
 
         if exclude_cols:
             exclude_cols_list = [col.strip() for col in exclude_cols.split(",")]
             # 제외할 컬럼 처리
             data = data[:, ~np.isin(header, exclude_cols_list)]
             header = header[~np.isin(header, exclude_cols_list)]
-            click.echo(f"Excluding columns: {exclude_cols_list}")
+            click.echo(f"[LOG] Excluding columns: {exclude_cols_list}")
 
         if include_index:
             include_index_list = parse_index_range(include_index)
             # 인덱스를 기반으로 포함
             data = data[:, include_index_list]
             header = header[include_index_list]
-            click.echo(f"Including columns by index: {include_index_list}")
+            click.echo(f"[LOG] Including columns by index: {include_index_list}")
 
         if exclude_index:
             exclude_index_list = parse_index_range(exclude_index)
@@ -245,11 +245,11 @@ def main(
             header = [
                 col for i, col in enumerate(header) if i not in exclude_index_list
             ]
-            click.echo(f"Excluding columns by index: {exclude_index_list}")
+            click.echo(f"[LOG] Excluding columns by index: {exclude_index_list}")
 
         header = pd.Index(header)
         data = validate_numeric_2d_array(data)
-        click.echo(f"Shape of input data is {data.shape[0]} x {data.shape[1]}")
+        click.echo(f"[LOG] Shape of input data is {data.shape[0]} x {data.shape[1]}")
 
         model_accord = GraphicalAccord(
             Omega_star=np.eye(len(header)),

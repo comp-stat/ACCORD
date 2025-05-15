@@ -101,7 +101,7 @@ def save_data(header, omega, output_file):
 
     npy_file = str(Path(output_file).with_suffix(f".npy"))
     np.save(npy_file, omega)
-    print(f"Omega saved to {npy_file}")
+    print(f"[LOG] Omega saved to {npy_file}")
 
     # Omega -> Theta
     D = np.diag(np.diag(omega))
@@ -136,7 +136,7 @@ def save_data(header, omega, output_file):
     else:
         raise ValueError("Unsupported file format. Please use .xlsx, .xls, or .csv")
 
-    print(f"Data saved to {output_file}")
+    print(f"[LOG] Data saved to {output_file}")
 
 
 def transform_data(header, data):

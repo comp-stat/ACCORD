@@ -1,6 +1,7 @@
 import _gaccord as _accord
 import numpy as np
 import time
+from datetime import datetime
 import psutil
 import os
 from gaccord.epbic import compute_epBIC
@@ -199,7 +200,7 @@ class GraphicalAccord:
         The l1-regularization parameter
     gamma: float
         The constant for epBIC calculation
-    lam2 : float
+    lam2_values : array of float
         The l2-regularization parameter
     split : {'fbs', 'ista'}, default='fbs'
         The type of split
@@ -230,7 +231,7 @@ class GraphicalAccord:
         Omega_star=None,
         lam1_values=[0.1],
         gamma=0.5,
-        lam2=0.0,
+        lam2_values=[0.0],
         split="fbs",
         stepsize_multiplier=1.0,
         constant_stepsize=0.5,
@@ -243,7 +244,7 @@ class GraphicalAccord:
         self.Omega_star = Omega_star
         self.lam1_values = lam1_values
         self.gamma = gamma
-        self.lam2 = lam2
+        self.lam2_values = lam2_values
         self.split = split
         self.stepsize_multiplier = stepsize_multiplier
         self.constant_stepsize = constant_stepsize
@@ -279,39 +280,41 @@ class GraphicalAccord:
         best_epBIC = float("inf")
 
         for lam1 in self.lam1_values:
-            print(f"ACCORD started with lam1: {lam1}")
-            omega, hist = accord(
-                S,
-                X_init=initial,
-                Omega_star=self.Omega_star,
-                lam1=lam1,
-                lam2=self.lam2,
-                split=self.split,
-                stepsize_multiplier=self.stepsize_multiplier,
-                constant_stepsize=self.constant_stepsize,
-                backtracking=self.backtracking,
-                epstol=self.epstol,
-                maxitr=self.maxitr,
-                penalize_diag=self.penalize_diag,
-                logging_interval=self.logging_interval,
-            )
-            if hist[-1][2] > self.epstol:
-                print("[Warning] The result does not converge.")
+            for lam2 in self.lam2_values:
+                print(f'[ACCORD]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} ACCORD started with lam1: {lam1}, lam2: {lam2}')
+                omega, hist = accord(
+                    S,
+                    X_init=initial,
+                    Omega_star=self.Omega_star,
+                    lam1=lam1,
+                    lam2=lam2,
+                    split=self.split,
+                    stepsize_multiplier=self.stepsize_multiplier,
+                    constant_stepsize=self.constant_stepsize,
+                    backtracking=self.backtracking,
+                    epstol=self.epstol,
+                    maxitr=self.maxitr,
+                    penalize_diag=self.penalize_diag,
+                    logging_interval=self.logging_interval,
+                )
+                if hist[-1][2] > self.epstol:
+                    print('[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.')
 
-            epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
-            if epBIC_value < best_epBIC:
-                best_epBIC = epBIC_value
-                best_lam1 = lam1
-                self.omega_ = omega
-                self.hist_ = hist
+                epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
+                if epBIC_value < best_epBIC:
+                    best_epBIC = epBIC_value
+                    best_lam1 = lam1
+                    best_lam2 = lam2
+                    self.omega_ = omega
+                    self.hist_ = hist
 
-        print(f"Selected lam1: {best_lam1}")
+        print(f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}")
 
         end_time = time.time()
         # Get final process memory
         mem_after = process.memory_info().rss
 
-        print(f"Execution Time: {end_time - start_time} seconds")
-        print(f"Memory Usage: {mem_after - mem_before} bytes")
+        print(f"[LOG] Execution Time: {end_time - start_time} seconds")
+        print(f"[LOG] Memory Usage: {mem_after - mem_before} bytes")
 
         return self

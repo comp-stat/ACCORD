@@ -13,27 +13,27 @@ from gaccord.gaccord import GraphicalAccord
 import traceback
 
 
-def parse_lam1(lam1_input):
+def parse_lam(lam_input):
     """
-    Parse the lam1 input, which can be:
+    Parse the lam1 or lam2 input, which can be:
     - A single float value
     - A space-separated list of float values
     - A range in the format `start:end:step`
     """
-    if isinstance(lam1_input, (float, int)):
-        return np.array([lam1_input])
+    if isinstance(lam_input, (float, int)):
+        return np.array([lam_input])
 
-    if isinstance(lam1_input, str):
-        if ":" in lam1_input:  # Range format "start:end:step"
-            parts = lam1_input.split(":")
+    if isinstance(lam_input, str):
+        if ":" in lam_input:  # Range format "start:end:step"
+            parts = lam_input.split(":")
             if len(parts) != 3:
                 raise ValueError("Range format must be 'start:end:step'")
             start, end, step = map(float, parts)
             return np.arange(start, end + step, step)  # Include end value
         else:  # List of values "0.1 0.2 0.3"
-            return np.array([float(x) for x in lam1_input.split()])
+            return np.array([float(x) for x in lam_input.split()])
 
-    raise ValueError("Invalid lam1 input format")
+    raise ValueError("Invalid lam input format")
 
 
 def validate_gamma(ctx, param, value):
@@ -195,7 +195,8 @@ def main(
                 "Only one of the following options can be used: --include-cols, --exclude-cols, --include-index, --exclude-index"
             )
 
-        lam1_values = parse_lam1(lam1)
+        lam1_values = parse_lam(lam1)
+        lam2_values = parse_lam(lam2)
 
         # 설정된 옵션 출력
         click.echo(f"Processing with the following parameters:")
@@ -204,7 +205,7 @@ def main(
         click.echo(f"  Warm up File: {warmup_file}")
         click.echo(f"  L1 Regularization (λ1): {lam1_values}")
         click.echo(f"  The constant for epBIC (𝛾): {gamma}")
-        click.echo(f"  L2 Regularization (λ2): {lam2}")
+        click.echo(f"  L2 Regularization (λ2): {lam2_values}")
         click.echo(f"  Split Method: {split}")
         click.echo(f"  Stepsize Multiplier: {stepsize_multiplier}")
         click.echo(f"  Constant Stepsize: {constant_stepsize}")
@@ -254,7 +255,7 @@ def main(
             Omega_star=np.eye(len(header)),
             lam1_values=lam1_values,
             gamma=gamma,
-            lam2=lam2,
+            lam2_values=lam2_values,
             split=split,
             stepsize_multiplier=stepsize_multiplier,
             constant_stepsize=constant_stepsize,

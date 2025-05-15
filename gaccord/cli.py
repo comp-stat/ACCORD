@@ -1,6 +1,7 @@
 import click
 import pandas as pd
 import numpy as np
+from pathlib import Path
 import traceback
 from gaccord.runner import (
     read_data,
@@ -13,27 +14,27 @@ from gaccord.gaccord import GraphicalAccord
 import traceback
 
 
-def parse_lam1(lam1_input):
+def parse_lam(lam_input):
     """
-    Parse the lam1 input, which can be:
+    Parse the lam1 or lam2 input, which can be:
     - A single float value
     - A space-separated list of float values
     - A range in the format `start:end:step`
     """
-    if isinstance(lam1_input, (float, int)):
-        return np.array([lam1_input])
+    if isinstance(lam_input, (float, int)):
+        return np.array([lam_input])
 
-    if isinstance(lam1_input, str):
-        if ":" in lam1_input:  # Range format "start:end:step"
-            parts = lam1_input.split(":")
+    if isinstance(lam_input, str):
+        if ":" in lam_input:  # Range format "start:end:step"
+            parts = lam_input.split(":")
             if len(parts) != 3:
                 raise ValueError("Range format must be 'start:end:step'")
             start, end, step = map(float, parts)
             return np.arange(start, end + step, step)  # Include end value
         else:  # List of values "0.1 0.2 0.3"
-            return np.array([float(x) for x in lam1_input.split()])
+            return np.array([float(x) for x in lam_input.split()])
 
-    raise ValueError("Invalid lam1 input format")
+    raise ValueError("Invalid lam input format")
 
 
 def validate_gamma(ctx, param, value):
@@ -68,15 +69,15 @@ def validate_gamma(ctx, param, value):
 )
 @click.option(
     "--lam2",
-    type=float,
-    default=0.0,
+    type=str,
+    default="0.0",
     show_default=True,
-    help="The L2-regularization parameter",
+    help="Scalar value, space-separated list, or range (start:end:step)",
 )
 @click.option(
     "--gamma",
     type=float,
-    default=0.5,
+    default=0.2,
     show_default=True,
     callback=validate_gamma,
     help="Gamma parameter in the range (0,1].",
@@ -195,16 +196,17 @@ def main(
                 "Only one of the following options can be used: --include-cols, --exclude-cols, --include-index, --exclude-index"
             )
 
-        lam1_values = parse_lam1(lam1)
+        lam1_values = parse_lam(lam1)
+        lam2_values = parse_lam(lam2)
 
         # 설정된 옵션 출력
-        click.echo(f"Processing with the following parameters:")
+        click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
         click.echo(f"  Output File: {output_file}")
         click.echo(f"  Warm up File: {warmup_file}")
         click.echo(f"  L1 Regularization (λ1): {lam1_values}")
         click.echo(f"  The constant for epBIC (𝛾): {gamma}")
-        click.echo(f"  L2 Regularization (λ2): {lam2}")
+        click.echo(f"  L2 Regularization (λ2): {lam2_values}")
         click.echo(f"  Split Method: {split}")
         click.echo(f"  Stepsize Multiplier: {stepsize_multiplier}")
         click.echo(f"  Constant Stepsize: {constant_stepsize}")
@@ -221,21 +223,21 @@ def main(
             # 컬럼이 포함될지 여부
             data = data[:, np.isin(header, include_cols_list)]
             header = header[np.isin(header, include_cols_list)]
-            click.echo(f"Including columns: {include_cols_list}")
+            click.echo(f"[LOG] Including columns: {include_cols_list}")
 
         if exclude_cols:
             exclude_cols_list = [col.strip() for col in exclude_cols.split(",")]
             # 제외할 컬럼 처리
             data = data[:, ~np.isin(header, exclude_cols_list)]
             header = header[~np.isin(header, exclude_cols_list)]
-            click.echo(f"Excluding columns: {exclude_cols_list}")
+            click.echo(f"[LOG] Excluding columns: {exclude_cols_list}")
 
         if include_index:
             include_index_list = parse_index_range(include_index)
             # 인덱스를 기반으로 포함
             data = data[:, include_index_list]
             header = header[include_index_list]
-            click.echo(f"Including columns by index: {include_index_list}")
+            click.echo(f"[LOG] Including columns by index: {include_index_list}")
 
         if exclude_index:
             exclude_index_list = parse_index_range(exclude_index)
@@ -244,17 +246,17 @@ def main(
             header = [
                 col for i, col in enumerate(header) if i not in exclude_index_list
             ]
-            click.echo(f"Excluding columns by index: {exclude_index_list}")
+            click.echo(f"[LOG] Excluding columns by index: {exclude_index_list}")
 
         header = pd.Index(header)
         data = validate_numeric_2d_array(data)
-        click.echo(f"Shape of input data is {data.shape[0]} x {data.shape[1]}")
+        click.echo(f"[LOG] Shape of input data is {data.shape[0]} x {data.shape[1]}")
 
         model_accord = GraphicalAccord(
             Omega_star=np.eye(len(header)),
             lam1_values=lam1_values,
             gamma=gamma,
-            lam2=lam2,
+            lam2_values=lam2_values,
             split=split,
             stepsize_multiplier=stepsize_multiplier,
             constant_stepsize=constant_stepsize,
@@ -272,6 +274,18 @@ def main(
 
         omega = model_accord.omega_.toarray()
         save_data(header, omega, output_file)
+
+        # save epBIC tables
+        rows = []
+        for i, lam1 in enumerate(lam1_values):
+            for j, lam2 in enumerate(lam2_values):
+                idx = i * len(lam2_values) + j
+                rows.append({'lambda1':lam1, 'lambda2': lam2, 'epBIC': model_accord.epbic_values[idx]})
+        df_epBIC = pd.DataFrame(rows)
+
+        epbic_path = str(Path(output_file).with_name(f"epBIC.csv"))
+        df_epBIC.to_csv(epbic_path, index=False)
+        print(f'[LOG] epBIC table saved to {epbic_path}')
     except Exception as e:
         traceback.print_exc()
         click.echo(f"Error: {e}")

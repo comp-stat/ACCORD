@@ -19,7 +19,7 @@ def parse_index_range(index_str):
     return indices
 
 
-def read_data(file_path):
+def read_data(file_path, row_wise=True):
     """
     Reads an xlsx, xls, or csv file and returns header and data separately.
 
@@ -37,8 +37,12 @@ def read_data(file_path):
         raise ValueError("Unsupported file format. Please use .xlsx, .xls, or .csv")
 
     # 헤더와 데이터 분리
-    header = df.columns  # 헤더 리스트
-    data = df.values  # 데이터 리스트
+    if row_wise:
+        header = df.columns  # 헤더 리스트
+        data = df.values  # 데이터 리스트
+    else:
+        header = df.iloc[:, 0]
+        data = df.iloc[:, 1:].T.values
 
     return header, data
 

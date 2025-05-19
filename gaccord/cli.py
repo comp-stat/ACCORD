@@ -288,8 +288,8 @@ def main(
                     }
                 )
         df_epBIC = pd.DataFrame(rows)
-
-        epbic_path = str(Path(output_file).with_name(f"epBIC.csv"))
+        path = Path(output_file)
+        epbic_path = str(path.with_name(path.stem + "_epBIC.csv"))
         df_epBIC.to_csv(epbic_path, index=False)
         print(f"[LOG] epBIC table saved to {epbic_path}")
     except Exception as e:

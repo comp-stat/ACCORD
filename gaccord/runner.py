@@ -6,16 +6,6 @@ import os
 from pathlib import Path
 from importlib.resources import files
 
-assay_by_oid = {}
-with files("gaccord").joinpath("OLINKprot_meta_data.txt").open(
-    "r", encoding="utf-8"
-) as file:
-    reader = csv.DictReader(file, delimiter="\t")
-    for row in reader:
-        olink_id = row["OlinkID"]
-        assay = row["Assay"]
-        assay_by_oid[olink_id] = assay
-
 
 def parse_index_range(index_str):
     """문자열로 입력된 인덱스 범위를 처리하는 함수. 예: '0,2,4-6'"""
@@ -82,10 +72,6 @@ def validate_numeric_2d_array(arr):
     return arr.astype(np.float64)
 
 
-def convert_oid(oid):
-    return assay_by_oid.get(oid, oid)
-
-
 def sign(number):
     return "+" if number >= 0 else "-"
 
@@ -117,8 +103,6 @@ def save_data(header, omega, output_file):
             "Precision.value",
             "Partial.Corr",
             "Simple.Corr",
-            "A",
-            "B",
             "AbsPartialCorr",
             "SignPartialCorr",
             "AbsSimpleCorr",
@@ -169,8 +153,6 @@ def transform_data(header, data):
                     data[i][j],
                     P[i][j],
                     D[i][j],
-                    convert_oid(header[i]),
-                    convert_oid(header[j]),
                     abs(P[i][j]),
                     sign(P[i][j]),
                     abs(D[i][j]),

@@ -80,7 +80,7 @@ def sign(number):
     return "+" if number >= 0 else "-"
 
 
-def save_data(header, omega, output_file):
+def save_data(header, omega, output_file, sparse):
     """
     Saves data into an xlsx, xls, or csv file.
 
@@ -113,6 +113,8 @@ def save_data(header, omega, output_file):
             "SignSimpleCorr",
         ],
     )
+    if sparse:
+        df = df[~((df['Precision.value']==0) & (df['Simple.Corr'] ==0))]
 
     # 확장자 확인 후 저장
     if output_file.endswith(".xlsx"):

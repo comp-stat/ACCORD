@@ -67,6 +67,11 @@ def validate_gamma(ctx, param, value):
     help="Path to the output file",
 )
 @click.option(
+    "--sparse/--dense",
+    default=True,
+    help="Save output in sparse format if enabled"
+)
+@click.option(
     "--lam1",
     type=str,
     default="0.1:1:0.1",
@@ -171,8 +176,9 @@ def validate_gamma(ctx, param, value):
 )
 def main(
     input_file,
-    output_file,
     row_wise,
+    output_file,
+    sparse,
     lam1,
     lam2,
     gamma,
@@ -211,6 +217,7 @@ def main(
         click.echo(f"  Input File: {input_file}")
         click.echo(f"  Orientation of Inuput File: {'row-wise' if row_wise else 'column-wise'}")
         click.echo(f"  Output File: {output_file}")
+        click.echo(f"  Save Output File as: {'sparse' if sparse else 'dense'} format")
         click.echo(f"  Warm up File: {warmup_file}")
         click.echo(f"  L1 Regularization (λ1): {lam1_values}")
         click.echo(f"  The constant for epBIC (𝛾): {gamma}")
@@ -281,7 +288,7 @@ def main(
             model_accord.fit(data)
 
         omega = model_accord.omega_.toarray()
-        save_data(header, omega, output_file)
+        save_data(header, omega, output_file, sparse)
 
         # save epBIC tables
         rows = []

@@ -288,7 +288,7 @@ def main(
             model_accord.fit(data)
 
         omega = model_accord.omega_.toarray()
-        save_data(header, omega, output_file, sparse)
+        save_data(header, data, omega, output_file, sparse)
 
         # save epBIC tables
         rows = []

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from gaccord.correlation import compute_partial_correlation, compute_simple_correlation
+from gaccord.correlation import compute_partial_correlation
 import csv
 import os
 from pathlib import Path
@@ -19,7 +19,7 @@ def parse_index_range(index_str):
     return indices
 
 
-def read_data(file_path):
+def read_data(file_path, row_wise=True):
     """
     Reads an xlsx, xls, or csv file and returns header and data separately.
 
@@ -37,8 +37,12 @@ def read_data(file_path):
         raise ValueError("Unsupported file format. Please use .xlsx, .xls, or .csv")
 
     # 헤더와 데이터 분리
-    header = df.columns  # 헤더 리스트
-    data = df.values  # 데이터 리스트
+    if row_wise:
+        header = df.columns  # 헤더 리스트
+        data = df.values  # 데이터 리스트
+    else:
+        header = df.iloc[:, 0]
+        data = df.iloc[:, 1:].T.values
 
     return header, data
 
@@ -76,13 +80,14 @@ def sign(number):
     return "+" if number >= 0 else "-"
 
 
-def save_data(header, omega, output_file):
+def save_data(header, data, omega, output_file, sparse):
     """
     Saves data into an xlsx, xls, or csv file.
 
     :param header: List of column names
-    :param omega: List of lists (table data)
-    :param output_file: Output file path with extension
+    :param data: raw data
+    :param omega: estimated omega using ACCORD
+    :param output_file: output file path with extension
     """
 
     npy_file = str(Path(output_file).with_suffix(f".npy"))
@@ -96,19 +101,21 @@ def save_data(header, omega, output_file):
 
     # DataFrame 생성
     df = pd.DataFrame(
-        transform_data(header, theta),
+        transform_data(header, data, theta),
         columns=[
             "V1",
             "V2",
             "Precision.value",
             "Partial.Corr",
-            "Simple.Corr",
+            "Pearson.Corr",
             "AbsPartialCorr",
             "SignPartialCorr",
-            "AbsSimpleCorr",
-            "SignSimpleCorr",
+            "AbsPearsonCorr",
+            "SignPearsonCorr",
         ],
     )
+    if sparse:
+        df = df[~(df['Precision.value']==0)]
 
     # 확장자 확인 후 저장
     if output_file.endswith(".xlsx"):
@@ -123,13 +130,14 @@ def save_data(header, omega, output_file):
     print(f"[LOG] Data saved to {output_file}")
 
 
-def transform_data(header, data):
+def transform_data(header, data, theta):
     """
     Transform a 2D ndarray into a list of tuples where each tuple contains (header[i], header[j], data[i][j]),
     but only for the upper triangle (excluding the diagonal).
 
     :param header: pandas Index object (e.g., a row or column index)
-    :param data: 2D numpy ndarray with values corresponding to the header combination
+    :param data: 2D numpy ndarray with raw data
+    :param theta: 2D numpy ndarray with values corresponding to the header combination
     :return: List of tuples in the form (header[i], header[j], data[i][j]), only for upper triangle (i < j)
     """
     if not isinstance(header, pd.Index):
@@ -138,8 +146,11 @@ def transform_data(header, data):
     if not isinstance(data, np.ndarray):
         raise TypeError("data must be a numpy ndarray")
 
-    P = compute_partial_correlation(data)
-    D = compute_simple_correlation(data)
+    if not isinstance(theta, np.ndarray):
+        raise TypeError("theta must be a numpy ndarray")
+
+    P = compute_partial_correlation(theta)
+    D = np.corrcoef(data, rowvar=False)
 
     result = []
     for i in range(header.shape[0]):  # Iterate over rows of header
@@ -150,7 +161,7 @@ def transform_data(header, data):
                 (
                     header[i],
                     header[j],
-                    data[i][j],
+                    theta[i][j],
                     P[i][j],
                     D[i][j],
                     abs(P[i][j]),

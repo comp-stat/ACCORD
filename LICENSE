@@ -1,4 +1,31 @@
-MIT License
+END-USER LICENSE AGREEMENT (EULA)
+
+IMPORTANT – READ CAREFULLY:
+
+This End-User License Agreement ("Agreement") is a legal agreement between you (either an individual or an entity) and the Computational Statistics Lab @ Seoul National University ("Licensor") for the use of the software titled "ACCORD" ("Software").
+
+By installing, copying, or otherwise using the Software, you agree to be bound by the terms of this Agreement.
+
+1. GRANT OF LICENSE
+The Licensor grants you a limited, non-transferable, non-exclusive license to install and use the Software solely for internal research or commercial purposes, as specified in a separate purchase or license agreement.
+
+2. RESTRICTIONS
+You may not:
+- Copy, modify, distribute, or sublicense the Software, in whole or in part;
+- Reverse engineer, decompile, or disassemble the Software;
+- Use the Software to develop competing products.
+
+3. INTELLECTUAL PROPERTY
+All title and intellectual property rights in and to the Software are owned by the Licensor. The Software is licensed, not sold.
+
+4. THIRD-PARTY COMPONENTS AND ATTRIBUTIONS
+This software includes components that are based on third-party works distributed under open source licenses:
+
+---
+
+(a) MIT License
+Component: This software is based in part on code originally developed by Joshua Bang.
+License: MIT License
 
 Copyright (c) 2024 Joshua Bang
 
@@ -19,3 +46,35 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+(b) MPL 2.0 License  
+Component: Eigen 3.4.0 (https://eigen.tuxfamily.org/)  
+License: Mozilla Public License 2.0 (MPL-2.0)
+
+Eigen is a C++ template library for linear algebra, licensed under the MPL 2.0.  
+Under the terms of the MPL, any changes to Eigen source files themselves must retain the same license, but this does **not require** the rest of ACCORD to be open source.
+
+You may obtain a copy of the license at:  
+https://www.mozilla.org/en-US/MPL/2.0/
+
+---
+
+The inclusion of these third-party components does not affect the overall licensing of ACCORD, which remains a proprietary software product licensed commercially by the Computational Statistics Lab @ Seoul National University.
+
+5. DISCLAIMER OF WARRANTIES
+The Software is provided "AS IS" without warranty of any kind. The Licensor disclaims all warranties, express or implied, including merchantability and fitness for a particular purpose.
+
+6. LIMITATION OF LIABILITY
+In no event shall the Licensor be liable for any damages arising out of the use of or inability to use the Software.
+
+7. TERMINATION
+This Agreement is effective until terminated. It will terminate automatically without notice if you fail to comply with any provision. Upon termination, you must destroy all copies of the Software.
+
+8. GOVERNING LAW
+This Agreement shall be governed by and interpreted in accordance with the laws of the Republic of Korea.
+
+---
+
+© 2025 Computational Statistics Lab @ Seoul National University. All rights reserved.

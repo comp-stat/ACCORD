@@ -54,11 +54,22 @@ def validate_gamma(ctx, param, value):
     help="Path to the input file",
 )
 @click.option(
+    "--row-wise/--column-wise",
+    default=True,
+    show_default=True,
+    help="Orientation of input data (n by p or p by n), first column must be the name of variables for column-wise data"
+)
+@click.option(
     "--output-file",
     "-o",
     type=click.Path(),
     required=True,
     help="Path to the output file",
+)
+@click.option(
+    "--sparse/--dense",
+    default=True,
+    help="Save output in sparse format if enabled"
 )
 @click.option(
     "--lam1",
@@ -130,28 +141,28 @@ def validate_gamma(ctx, param, value):
     help="Whether to penalize the diagonal elements",
 )
 @click.option(
-    "--include-cols",
+    "--include-vars",
     type=str,
     default="",
-    help="Comma-separated list of column names to include",
+    help="Comma-separated list of variable names to include",
 )
 @click.option(
-    "--exclude-cols",
+    "--exclude-vars",
     type=str,
     default="",
-    help="Comma-separated list of column names to exclude",
+    help="Comma-separated list of variable names to exclude",
 )
 @click.option(
     "--include-index",
     type=str,
     default="",
-    help="Comma-separated list or range of column indices to include (e.g., '0,2,4-6')",
+    help="Comma-separated list or range of variable indices to include (e.g., '0,2,4-6')",
 )
 @click.option(
     "--exclude-index",
     type=str,
     default="",
-    help="Comma-separated list or range of column indices to exclude (e.g., '1,3,5-7')",
+    help="Comma-separated list or range of variable indices to exclude (e.g., '1,3,5-7')",
 )
 @click.option(
     "--itr-logging-interval",
@@ -165,7 +176,9 @@ def validate_gamma(ctx, param, value):
 )
 def main(
     input_file,
+    row_wise,
     output_file,
+    sparse,
     lam1,
     lam2,
     gamma,
@@ -176,8 +189,8 @@ def main(
     epstol,
     maxitr,
     penalize_diag,
-    include_cols,
-    exclude_cols,
+    include_vars,
+    exclude_vars,
     include_index,
     exclude_index,
     itr_logging_interval,
@@ -187,13 +200,13 @@ def main(
         if (
             sum(
                 1
-                for s in [include_cols, exclude_cols, include_index, exclude_index]
+                for s in [include_vars, exclude_vars, include_index, exclude_index]
                 if s != ""
             )
             >= 2
         ):
             raise ValueError(
-                "Only one of the following options can be used: --include-cols, --exclude-cols, --include-index, --exclude-index"
+                "Only one of the following options can be used: --include-vars, --exclude-vars, --include-index, --exclude-index"
             )
 
         lam1_values = parse_lam(lam1)
@@ -202,7 +215,9 @@ def main(
         # 설정된 옵션 출력
         click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
+        click.echo(f"  Orientation of Inuput File: {'row-wise' if row_wise else 'column-wise'}")
         click.echo(f"  Output File: {output_file}")
+        click.echo(f"  Save Output File as: {'sparse' if sparse else 'dense'} format")
         click.echo(f"  Warm up File: {warmup_file}")
         click.echo(f"  L1 Regularization (λ1): {lam1_values}")
         click.echo(f"  The constant for epBIC (𝛾): {gamma}")
@@ -216,37 +231,37 @@ def main(
         click.echo(f"  Penalize Diagonal: {'Yes' if penalize_diag else 'No'}")
         click.echo(f"  Iteration Logging Interval: {itr_logging_interval}")
 
-        (header, data) = read_data(input_file)
+        (header, data) = read_data(input_file, row_wise)
 
-        if include_cols:
-            include_cols_list = [col.strip() for col in include_cols.split(",")]
+        if include_vars:
+            include_vars_list = [variable.strip() for variable in include_vars.split(",")]
             # 컬럼이 포함될지 여부
-            data = data[:, np.isin(header, include_cols_list)]
-            header = header[np.isin(header, include_cols_list)]
-            click.echo(f"[LOG] Including columns: {include_cols_list}")
+            data = data[:, np.isin(header, include_vars_list)]
+            header = header[np.isin(header, include_vars_list)]
+            click.echo(f"[LOG] Including variables: {include_vars_list}")
 
-        if exclude_cols:
-            exclude_cols_list = [col.strip() for col in exclude_cols.split(",")]
+        if exclude_vars:
+            exclude_vars_list = [variable.strip() for variable in exclude_vars.split(",")]
             # 제외할 컬럼 처리
-            data = data[:, ~np.isin(header, exclude_cols_list)]
-            header = header[~np.isin(header, exclude_cols_list)]
-            click.echo(f"[LOG] Excluding columns: {exclude_cols_list}")
+            data = data[:, ~np.isin(header, exclude_vars_list)]
+            header = header[~np.isin(header, exclude_vars_list)]
+            click.echo(f"[LOG] Excluding variables: {exclude_vars_list}")
 
         if include_index:
             include_index_list = parse_index_range(include_index)
             # 인덱스를 기반으로 포함
             data = data[:, include_index_list]
             header = header[include_index_list]
-            click.echo(f"[LOG] Including columns by index: {include_index_list}")
+            click.echo(f"[LOG] Including variables by index: {include_index_list}")
 
         if exclude_index:
             exclude_index_list = parse_index_range(exclude_index)
             # 인덱스를 기반으로 제외
             data = np.delete(data, exclude_index_list, axis=1)
             header = [
-                col for i, col in enumerate(header) if i not in exclude_index_list
+                variable for i, variable in enumerate(header) if i not in exclude_index_list
             ]
-            click.echo(f"[LOG] Excluding columns by index: {exclude_index_list}")
+            click.echo(f"[LOG] Excluding variables by index: {exclude_index_list}")
 
         header = pd.Index(header)
         data = validate_numeric_2d_array(data)
@@ -273,7 +288,7 @@ def main(
             model_accord.fit(data)
 
         omega = model_accord.omega_.toarray()
-        save_data(header, omega, output_file)
+        save_data(header, data, omega, output_file, sparse)
 
         # save epBIC tables
         rows = []

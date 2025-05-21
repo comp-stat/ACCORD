@@ -57,7 +57,7 @@ def validate_gamma(ctx, param, value):
     "--row-wise/--column-wise",
     default=True,
     show_default=True,
-    help="Orientation of input data (n by p or p by n), first column must be the name of variables for column-wise data"
+    help="Orientation of input data (n by p or p by n), first column must be the name of variables for column-wise data",
 )
 @click.option(
     "--output-file",
@@ -67,9 +67,7 @@ def validate_gamma(ctx, param, value):
     help="Path to the output file",
 )
 @click.option(
-    "--sparse/--dense",
-    default=True,
-    help="Save output in sparse format if enabled"
+    "--sparse/--dense", default=True, help="Save output in sparse format if enabled"
 )
 @click.option(
     "--lam1",
@@ -215,7 +213,9 @@ def main(
         # 설정된 옵션 출력
         click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
-        click.echo(f"  Orientation of Inuput File: {'row-wise' if row_wise else 'column-wise'}")
+        click.echo(
+            f"  Orientation of Inuput File: {'row-wise' if row_wise else 'column-wise'}"
+        )
         click.echo(f"  Output File: {output_file}")
         click.echo(f"  Save Output File as: {'sparse' if sparse else 'dense'} format")
         click.echo(f"  Warm up File: {warmup_file}")
@@ -234,14 +234,18 @@ def main(
         (header, data) = read_data(input_file, row_wise)
 
         if include_vars:
-            include_vars_list = [variable.strip() for variable in include_vars.split(",")]
+            include_vars_list = [
+                variable.strip() for variable in include_vars.split(",")
+            ]
             # 컬럼이 포함될지 여부
             data = data[:, np.isin(header, include_vars_list)]
             header = header[np.isin(header, include_vars_list)]
             click.echo(f"[LOG] Including variables: {include_vars_list}")
 
         if exclude_vars:
-            exclude_vars_list = [variable.strip() for variable in exclude_vars.split(",")]
+            exclude_vars_list = [
+                variable.strip() for variable in exclude_vars.split(",")
+            ]
             # 제외할 컬럼 처리
             data = data[:, ~np.isin(header, exclude_vars_list)]
             header = header[~np.isin(header, exclude_vars_list)]
@@ -259,7 +263,9 @@ def main(
             # 인덱스를 기반으로 제외
             data = np.delete(data, exclude_index_list, axis=1)
             header = [
-                variable for i, variable in enumerate(header) if i not in exclude_index_list
+                variable
+                for i, variable in enumerate(header)
+                if i not in exclude_index_list
             ]
             click.echo(f"[LOG] Excluding variables by index: {exclude_index_list}")
 

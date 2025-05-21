@@ -115,7 +115,7 @@ def save_data(header, data, omega, output_file, sparse):
         ],
     )
     if sparse:
-        df = df[~(df['Precision.value']==0)]
+        df = df[~(df["Precision.value"] == 0)]
 
     # 확장자 확인 후 저장
     if output_file.endswith(".xlsx"):

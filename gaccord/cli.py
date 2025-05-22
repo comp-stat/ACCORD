@@ -11,6 +11,7 @@ from gaccord.runner import (
     reconstruct_data,
 )
 from gaccord.gaccord import GraphicalAccord
+from gaccord import __version__
 import traceback
 
 
@@ -46,6 +47,7 @@ def validate_gamma(ctx, param, value):
 
 
 @click.command()
+@click.version_option(__version__, prog_name="accord")
 @click.option(
     "--input-file",
     "-i",
@@ -54,10 +56,10 @@ def validate_gamma(ctx, param, value):
     help="Path to the input file",
 )
 @click.option(
-    "--row-wise/--column-wise",
+    "--column-wise/--row-wise",
     default=True,
     show_default=True,
-    help="Orientation of input data (n by p or p by n), first column must be the name of variables for column-wise data"
+    help="Orientation of the variables. --column-wise means the input data is n by p shaped."
 )
 @click.option(
     "--output-file",
@@ -176,7 +178,7 @@ def validate_gamma(ctx, param, value):
 )
 def main(
     input_file,
-    row_wise,
+    column_wise,
     output_file,
     sparse,
     lam1,
@@ -212,10 +214,13 @@ def main(
         lam1_values = parse_lam(lam1)
         lam2_values = parse_lam(lam2)
 
+        # print version
+        click.echo(f"[LOG] ACCORD version {__version__}")
+
         # 설정된 옵션 출력
         click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
-        click.echo(f"  Orientation of Inuput File: {'row-wise' if row_wise else 'column-wise'}")
+        click.echo(f"  Orientation of the variables: {'column-wise' if column_wise else 'row-wise'}")
         click.echo(f"  Output File: {output_file}")
         click.echo(f"  Save Output File as: {'sparse' if sparse else 'dense'} format")
         click.echo(f"  Warm up File: {warmup_file}")
@@ -231,7 +236,7 @@ def main(
         click.echo(f"  Penalize Diagonal: {'Yes' if penalize_diag else 'No'}")
         click.echo(f"  Iteration Logging Interval: {itr_logging_interval}")
 
-        (header, data) = read_data(input_file, row_wise)
+        (header, data) = read_data(input_file, column_wise)
 
         if include_vars:
             include_vars_list = [variable.strip() for variable in include_vars.split(",")]

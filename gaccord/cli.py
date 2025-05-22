@@ -69,9 +69,7 @@ def validate_gamma(ctx, param, value):
     help="Path to the output file",
 )
 @click.option(
-    "--sparse/--dense",
-    default=True,
-    help="Save output in sparse format if enabled"
+    "--sparse/--dense", default=True, help="Save output in sparse format if enabled"
 )
 @click.option(
     "--lam1",
@@ -239,14 +237,18 @@ def main(
         (header, data) = read_data(input_file, column_wise)
 
         if include_vars:
-            include_vars_list = [variable.strip() for variable in include_vars.split(",")]
+            include_vars_list = [
+                variable.strip() for variable in include_vars.split(",")
+            ]
             # 컬럼이 포함될지 여부
             data = data[:, np.isin(header, include_vars_list)]
             header = header[np.isin(header, include_vars_list)]
             click.echo(f"[LOG] Including variables: {include_vars_list}")
 
         if exclude_vars:
-            exclude_vars_list = [variable.strip() for variable in exclude_vars.split(",")]
+            exclude_vars_list = [
+                variable.strip() for variable in exclude_vars.split(",")
+            ]
             # 제외할 컬럼 처리
             data = data[:, ~np.isin(header, exclude_vars_list)]
             header = header[~np.isin(header, exclude_vars_list)]
@@ -264,7 +266,9 @@ def main(
             # 인덱스를 기반으로 제외
             data = np.delete(data, exclude_index_list, axis=1)
             header = [
-                variable for i, variable in enumerate(header) if i not in exclude_index_list
+                variable
+                for i, variable in enumerate(header)
+                if i not in exclude_index_list
             ]
             click.echo(f"[LOG] Excluding variables by index: {exclude_index_list}")
 

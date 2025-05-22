@@ -59,7 +59,7 @@ def validate_gamma(ctx, param, value):
     "--column-wise/--row-wise",
     default=True,
     show_default=True,
-    help="Orientation of the variables. --column-wise means the input data is n by p shaped."
+    help="Orientation of the variables. --column-wise means the input data is n by p shaped.",
 )
 @click.option(
     "--output-file",
@@ -218,7 +218,9 @@ def main(
         # 설정된 옵션 출력
         click.echo(f"[LOG] Processing with the following parameters:")
         click.echo(f"  Input File: {input_file}")
-        click.echo(f"  Orientation of the variables: {'column-wise' if column_wise else 'row-wise'}")
+        click.echo(
+            f"  Orientation of the variables: {'column-wise' if column_wise else 'row-wise'}"
+        )
         click.echo(f"  Output File: {output_file}")
         click.echo(f"  Save Output File as: {'sparse' if sparse else 'dense'} format")
         click.echo(f"  Warm up File: {warmup_file}")

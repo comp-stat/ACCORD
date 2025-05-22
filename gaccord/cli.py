@@ -11,6 +11,7 @@ from gaccord.runner import (
     reconstruct_data,
 )
 from gaccord.gaccord import GraphicalAccord
+from gaccord import __version__
 import traceback
 
 
@@ -46,6 +47,7 @@ def validate_gamma(ctx, param, value):
 
 
 @click.command()
+@click.version_option(__version__, prog_name="accord")
 @click.option(
     "--input-file",
     "-i",
@@ -211,6 +213,9 @@ def main(
 
         lam1_values = parse_lam(lam1)
         lam2_values = parse_lam(lam2)
+
+        # print version
+        click.echo(f"[LOG] ACCORD version {__version__}")
 
         # 설정된 옵션 출력
         click.echo(f"[LOG] Processing with the following parameters:")

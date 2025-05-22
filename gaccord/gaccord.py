@@ -302,7 +302,7 @@ class GraphicalAccord:
                 )
                 if hist[-1][2] > self.epstol:
                     print(
-                        '[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.'
+                        f'[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.'
                     )
 
                 epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
@@ -322,7 +322,7 @@ class GraphicalAccord:
         # Get final process memory
         mem_after = process.memory_info().rss
 
-        print(f"[LOG] Execution Time: {end_time - start_time} seconds")
-        print(f"[LOG] Memory Usage: {mem_after - mem_before} bytes")
+        print(f"[LOG] Execution Time: {(end_time - start_time):.2f} seconds")
+        print(f"[LOG] Memory Usage: {(mem_after - mem_before):,} bytes")
 
         return self

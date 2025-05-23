@@ -42,7 +42,7 @@ def read_data(file_path, column_wise):
         header = df.columns
         data = df.values
     else:
-        #For row-wise data, the first column is name of the variables
+        # For row-wise data, the first column is name of the variables
         header = df.iloc[:, 0]
         data = df.iloc[:, 1:].T.values
 

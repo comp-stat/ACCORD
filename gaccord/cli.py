@@ -147,7 +147,7 @@ def validate_gamma(ctx, param, value):
     help="""
         Whether the input data include label of the samples or not.
         For column-wise data, default value is True and False for row-wise data.
-        """
+        """,
 )
 @click.option(
     "--include-vars",

@@ -141,6 +141,15 @@ def validate_gamma(ctx, param, value):
     help="Whether to penalize the diagonal elements",
 )
 @click.option(
+    "--include-sample-label",
+    type=bool,
+    show_default=True,
+    help="""
+        Whether the input data include label of the samples or not.
+        For column-wise data, default value is True and False for row-wise data.
+        """
+)
+@click.option(
     "--include-vars",
     type=str,
     default="",
@@ -189,6 +198,7 @@ def main(
     epstol,
     maxitr,
     penalize_diag,
+    include_sample_label,
     include_vars,
     exclude_vars,
     include_index,
@@ -237,6 +247,14 @@ def main(
         click.echo(f"  Iteration Logging Interval: {itr_logging_interval}")
 
         (header, data) = read_data(input_file, column_wise)
+
+        # Handle the label of samples
+        if include_sample_label is None:
+            include_sample_label = True if column_wise else False
+        if include_sample_label:
+            click.echo(f"  Exclude the label of samples")
+            data = data[:, 1:]
+            header = header[1:]
 
         if include_vars:
             include_vars_list = [

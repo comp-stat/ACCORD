@@ -8,7 +8,7 @@ from importlib.resources import files
 
 
 def parse_index_range(index_str):
-    """문자열로 입력된 인덱스 범위를 처리하는 함수. 예: '0,2,4-6'"""
+    """Handle the range of index given by string. e.g. '0,2,4-6'"""
     indices = []
     for part in index_str.split(","):
         if "-" in part:
@@ -24,23 +24,25 @@ def read_data(file_path, column_wise):
     Reads an xlsx, xls, or csv file and returns header and data separately.
 
     :param file_path: Path to the xlsx, xls, or csv file
+    :param column_wise: Whether the data is column-wise or row-wise
     :return: (header, data) -> header is a list, data is a list of lists
     """
-    # 파일 확장자 확인
+    # Check the file format
     if file_path.endswith(".xlsx"):
-        df = pd.read_excel(file_path, engine="openpyxl")  # XLSX 처리
+        df = pd.read_excel(file_path, engine="openpyxl")
     elif file_path.endswith(".xls"):
-        df = pd.read_excel(file_path, engine="xlrd")  # XLS 처리
+        df = pd.read_excel(file_path, engine="xlrd")
     elif file_path.endswith(".csv"):
-        df = pd.read_csv(file_path)  # CSV 처리
+        df = pd.read_csv(file_path)
     else:
         raise ValueError("Unsupported file format. Please use .xlsx, .xls, or .csv")
 
-    # 헤더와 데이터 분리
+    # Get the name of variables and data depends on the orientation
     if column_wise:
-        header = df.columns  # 헤더 리스트
-        data = df.values  # 데이터 리스트
+        header = df.columns
+        data = df.values
     else:
+        #For row-wise data, the first column is name of the variables
         header = df.iloc[:, 0]
         data = df.iloc[:, 1:].T.values
 

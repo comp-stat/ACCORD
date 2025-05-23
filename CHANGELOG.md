@@ -1,3 +1,7 @@
+## [1.1.2] - 2025-05-23
+### Added 
+- Add an option for ensuring sample label in the column-wise input data
+
 ## [1.1.1] - 2025-05-22
 ### Modified
 - Switch the behavior of --row-wise and --column-wise options.

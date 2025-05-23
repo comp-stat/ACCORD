@@ -302,7 +302,7 @@ class GraphicalAccord:
                 )
                 if hist[-1][2] > self.epstol:
                     print(
-                        '[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.'
+                        f'[WARNING]{datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")} The result does not converge.'
                     )
 
                 epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)

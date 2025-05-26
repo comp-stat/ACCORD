@@ -157,7 +157,7 @@ def transform_data(header, data, theta):
     result = []
     for i in range(header.shape[0]):  # Iterate over rows of header
         for j in range(header.shape[0]):  # Iterate over columns of header
-            if i >= j: # Save upper-triangular part only
+            if i >= j:  # Save upper-triangular part only
                 continue
             result.append(
                 (

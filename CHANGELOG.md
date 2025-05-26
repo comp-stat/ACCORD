@@ -1,3 +1,7 @@
+## [1.1.3] - 2025-05-26
+### Modified
+- Save only the upper triangular part of the main output file.
+
 ## [1.1.2] - 2025-05-23
 ### Added 
 - Add an option for ensuring sample label in the column-wise input data

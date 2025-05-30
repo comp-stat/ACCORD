@@ -37,6 +37,7 @@ Eigen::SparseMatrix<double> accord_ista_constant(
     int logging_interval
     );
 
+/*
 Eigen::SparseMatrix<double> accord_fbs_backtracking(
     Eigen::Ref<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> S,
     Eigen::Ref<Eigen::MatrixXd, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>> X_init,
@@ -71,6 +72,7 @@ Eigen::SparseMatrix<double> accord_fbs_constant(
     Eigen::Ref<Eigen::VectorXd> hist_iter_time,
     int logging_interval
     );
+    */
 
 PYBIND11_MODULE(_gaccord, m) {
 
@@ -111,6 +113,7 @@ PYBIND11_MODULE(_gaccord, m) {
             Column-major sparse matrix
         )pbdoc");
 
+    /*
     m.def(
         "accord_fbs_backtracking",
         &accord_fbs_backtracking,
@@ -128,6 +131,7 @@ PYBIND11_MODULE(_gaccord, m) {
 
             Column-major sparse matrix
         )pbdoc");
+        */
 
 #ifdef VERSION_INFO
     m.attr("__version__") = VERSION_INFO;

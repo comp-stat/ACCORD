@@ -277,9 +277,11 @@ class GraphicalAccord:
 
         start_time = time.time()
 
-        best_lam1 = None
+        best_lam1 = self.lam1_values[0]
+        best_lam2 = self.lam2_values[0]
         best_epBIC = float("inf")
 
+        count = 0
         for lam1 in self.lam1_values:
             for lam2 in self.lam2_values:
                 print(
@@ -307,12 +309,13 @@ class GraphicalAccord:
 
                 epBIC_value = compute_epBIC(omega.toarray(), S, self.gamma)
                 self.epbic_values.append(epBIC_value)
-                if epBIC_value < best_epBIC:
+                if count == 0 or epBIC_value < best_epBIC:
                     best_epBIC = epBIC_value
                     best_lam1 = lam1
                     best_lam2 = lam2
                     self.omega_ = omega
                     self.hist_ = hist
+                    count = count + 1
 
         print(
             f"[LOG] Selected lam1: {best_lam1}, lam2: {best_lam2}, epBIC: {best_epBIC}"

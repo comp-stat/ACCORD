@@ -9,25 +9,19 @@ using namespace Eigen;
 using namespace std;
 using namespace std::chrono;
 
-double sgn(double val) {
-    return (double(0) < val) - (val < double(0));
+// Custom sign function
+inline double sgn(double val) {
+    return (val > 0) - (val < 0);
 }
 
-void sthreshmat(MatrixXd & x,
-                double tau,
-                const MatrixXd & t){
-
-    MatrixXd tmp1(x.cols(), x.cols());
-    MatrixXd tmp2(x.cols(), x.cols());
-
-    tmp1 = x.array().unaryExpr(ptr_fun(sgn));
-    tmp2 = (x.cwiseAbs() - tau*t).cwiseMax(0.0);
-
+// Apply soft-thresholding with tau * t elementwise
+void sthreshmat(MatrixXd & x, double tau, const MatrixXd & t){
+    MatrixXd tmp1 = x.unaryExpr([](double val) { return sgn(val); });
+    MatrixXd tmp2 = (x.cwiseAbs() - tau * t).cwiseMax(0.0);
     x = tmp1.cwiseProduct(tmp2);
-
-    return;
 }
 
+// Utility: Get formatted current time string
 string current_time() {
     auto now = system_clock::now();
     std::time_t now_c = system_clock::to_time_t(now);
@@ -37,7 +31,14 @@ string current_time() {
     return oss.str();
 }
 
-//////////// ACCORD-ISTA with backtracking ////////////
+// Gradient computation with log barrier and l2 penalty
+MatrixXd compute_ista_grad_h1(const MatrixXd & X, const MatrixXd & W, double lam2) {
+    VectorXd diag = X.diagonal();
+    VectorXd inv_diag = X.diagonal().cwiseInverse();
+    MatrixXd grad = -inv_diag.asDiagonal().toDenseMatrix() + W + lam2 * X;
+    return grad;
+}
+
 SparseMatrix<double> accord_ista_backtracking(
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> S,
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> X_init,
@@ -51,117 +52,72 @@ SparseMatrix<double> accord_ista_backtracking(
     Ref<VectorXd> hist_successive_norm,
     Ref<VectorXd> hist_norm,
     Ref<VectorXd> hist_iter_time,
-    int logging_interval
-    ) {
+    int logging_interval) {
 
-    int p = S.cols();
+  // Compute variables using at intial point
+  MatrixXd X = X_init;
+  MatrixXd W = X * S;
+  MatrixXd grad_h1 = compute_ista_grad_h1(X, W, lam2);
+  double h1 = -X.diagonal().array().log().sum() + 0.5 * (X.transpose() * W).trace() +
+    0.5 * lam2 * X.squaredNorm();
 
-    SparseMatrix<double> X(p, p), Xn(p, p); // current and next estimate
-    SparseMatrix<double> Step(p, p);        // Xn - X
-    MatrixXd W(p, p), Wn(p, p);             // X*S
+  int outer_itr_count = 0;
 
-    MatrixXd subg(p, p);
-    MatrixXd grad_h1(p, p);                 // gradient of h1
-    MatrixXd subgrad_h2(p, p);              // subgradient of h2
-    MatrixXd tmp(p, p);
+  while (true) {
+    auto t1 = high_resolution_clock::now();
+    int inner_itr_count = 0;
+    double tau = 0.5, c_ = 0.5;
 
-    double Q, hn, h1, h1n, successive_norm, omega_star_norm;
-    double tau, tau_ = 1.0;
-    double c_ = 0.5;
-    double elapsed;
-
-    grad_h1 = -1*X.diagonal().asDiagonal().inverse();
-    grad_h1 += 0.5 * (W + W.transpose());
-    grad_h1 += lam2 * X;
-
-    X = X_init.sparseView();
-    W = X * S;
-    grad_h1 = -1*X.diagonal().asDiagonal().inverse();
-    grad_h1 += W;
-    grad_h1 += lam2 * X;
-    h1 = - X.diagonal().array().log().sum() + 0.5 * (SparseMatrix<double>(X.transpose())*W).trace();
-
-    int outer_itr_count, inner_itr_count;        // iteration counts
-
-    outer_itr_count = 0;
+    // Inner iteration for line search
+    MatrixXd Xn, Wn, Step;
+    double h1n;
     while (true) {
+        Xn = X - tau * grad_h1;
+        sthreshmat(Xn, tau, LambdaMat);
 
-        high_resolution_clock::time_point t1 = high_resolution_clock::now();
- 
-        tau = tau_;
+        if (Xn.diagonal().minCoeff() > 0) {
+            Wn = Xn * S;
+            h1n = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() + 
+                  0.5 * lam2 * Xn.squaredNorm();
 
-        inner_itr_count = 0;
+            Step = Xn - X;
+            double Q = h1 + Step.cwiseProduct(grad_h1).sum() + 0.5 / tau * Step.squaredNorm();
 
-        while (true) {
-            tmp = MatrixXd(X) - tau*grad_h1;
-            sthreshmat(tmp, tau, LambdaMat);
-            Xn = tmp.sparseView();
-
-            if (tmp.diagonal().minCoeff() > 0) {
-
-                Step = Xn - X;
-                Wn = Xn * S;
-
-                h1n = - Xn.diagonal().array().log().sum() + 0.5 * (SparseMatrix<double>(Xn.transpose())*Wn).trace() + 0.5*lam2*pow(Xn.norm(),2);
-                Q = h1 + Step.cwiseProduct(grad_h1).sum() + (0.5/tau)*Step.squaredNorm();
-
-                if (h1n <= Q)
-                    break; 
-
-            }
-
-            tau *= c_;
-            inner_itr_count += 1;
+            if (h1n <= Q) break;
         }
-
-        high_resolution_clock::time_point t2 = high_resolution_clock::now();
-        duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-        elapsed = time_span.count();
-
-        grad_h1 = -1*Xn.diagonal().asDiagonal().inverse();
-        grad_h1 += Wn;
-        grad_h1 += lam2 * Xn;
-
-        hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
-        successive_norm = Step.norm();
-        omega_star_norm = (Xn - Omega_star).norm();
-
-        hist_inner_itr_count(outer_itr_count) = inner_itr_count;
-        hist_hn(outer_itr_count) = hn;
-        hist_successive_norm(outer_itr_count) = successive_norm;
-        hist_norm(outer_itr_count) = omega_star_norm;
-        hist_iter_time(outer_itr_count) = elapsed;
-
-        outer_itr_count += 1;
-        if (logging_interval > 0 && outer_itr_count % logging_interval == 0) {
-            cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
-        }
-        
-        // change termination contition (omega_star_norm -> successive_norm)
-        if (successive_norm < epstol || outer_itr_count >= maxitr) {
-            if (outer_itr_count <= maxitr) {
-                hist_inner_itr_count(outer_itr_count) = -1;
-                hist_hn(outer_itr_count) = -1;
-                hist_successive_norm(outer_itr_count) = -1;
-                hist_norm(outer_itr_count) = -1;
-                hist_iter_time(outer_itr_count) = -1;
-            }
-            break;
-        } else {
-            h1 = h1n;
-            X = Xn;
-            W = Wn;
-        }
-
+        tau *= c_;
+        inner_itr_count++;
     }
 
-    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hn << "\n";
+    auto t2 = high_resolution_clock::now();
+    double elapsed = duration_cast<duration<double>>(t2 - t1).count();
 
-    return Xn;
+    grad_h1 = compute_ista_grad_h1(Xn, Wn, lam2);
+    double hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
+    double successive_norm = Step.norm();
+    double omega_star_norm = (Xn - Omega_star).norm();
+
+    hist_inner_itr_count(outer_itr_count) = inner_itr_count;
+    hist_hn(outer_itr_count) = hn;
+    hist_successive_norm(outer_itr_count) = successive_norm;
+    hist_norm(outer_itr_count) = omega_star_norm;
+    hist_iter_time(outer_itr_count) = elapsed;
+
+    outer_itr_count++;
+    if (logging_interval > 0 && outer_itr_count % logging_interval == 0)
+        cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
+
+    if (successive_norm < epstol || outer_itr_count >= maxitr) break;
+
+    X = Xn;
+    W = Wn;
+    h1 = h1n;
+  }
+
+  cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hist_hn(outer_itr_count-1) << "\n";
+  return X.sparseView();
 }
 
-
-//////////// ACCORD-ISTA with constant step size ////////////
 SparseMatrix<double> accord_ista_constant(
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> S,
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> X_init,
@@ -176,90 +132,48 @@ SparseMatrix<double> accord_ista_constant(
     Ref<VectorXd> hist_norm,
     Ref<VectorXd> hist_iter_time,
     int logging_interval
-    ) {
+) {
+    MatrixXd X = X_init;
+    MatrixXd W = X * S;
+    MatrixXd grad_h1 = compute_ista_grad_h1(X, W, lam2);
 
-    int p = S.cols();
-
-    SparseMatrix<double> X(p, p), Xn(p, p); // current and next estimate
-    SparseMatrix<double> Step(p, p);        // Xn - X
-    MatrixXd W(p, p), Wn(p, p);             // X*S
-
-    MatrixXd subg(p, p);
-    MatrixXd grad_h1(p, p);                 // gradient of h1
-    MatrixXd subgrad_h2(p, p);              // subgradient of h2
-    MatrixXd tmp(p, p);
-
-    double hn, h1, h1n, successive_norm, omega_star_norm;
-    double elapsed;
-
-    X.setIdentity();                         // initial guess: X = I
-    W = X * S;
-
-    grad_h1 = -1*X.diagonal().asDiagonal().inverse();
-    grad_h1 += W;
-    grad_h1 += lam2 * X;
-    h1 = - X.diagonal().array().log().sum() + 0.5 * (SparseMatrix<double>(X.transpose())*W).trace();
-
-    int itr_count;                             // iteration counts
-
-    itr_count = 0;
+    int itr_count = 0;
     while (true) {
+        auto t1 = high_resolution_clock::now();
 
-        high_resolution_clock::time_point t1 = high_resolution_clock::now();
+        MatrixXd Xn = X - tau * grad_h1;
+        sthreshmat(Xn, tau, LambdaMat);
+        MatrixXd Step = Xn - X;
+        MatrixXd Wn = Xn * S;
 
-        tmp = MatrixXd(X) - tau*grad_h1;
-        sthreshmat(tmp, tau, LambdaMat);
-        Xn = tmp.sparseView();
-        Step = Xn - X;
-        Wn = Xn * S;
-        h1n = - Xn.diagonal().array().log().sum() + 0.5 * (SparseMatrix<double>(Xn.transpose())*Wn).trace() + 0.5*lam2*pow(Xn.norm(),2);
+        auto t2 = high_resolution_clock::now();
+        double elapsed = duration_cast<duration<double>>(t2 - t1).count();
 
-        high_resolution_clock::time_point t2 = high_resolution_clock::now();
-        duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-        elapsed = time_span.count();
-
-        grad_h1 = -1*Xn.diagonal().asDiagonal().inverse();
-        grad_h1 += Wn;
-        grad_h1 += lam2 * Xn;
-
-        hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
-        successive_norm = Step.norm();
-        omega_star_norm = (Xn - Omega_star).norm();
+        grad_h1 = compute_ista_grad_h1(Xn, Wn, lam2);
+        double hn = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() +
+                    0.5 * lam2 * Xn.squaredNorm() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
+        double successive_norm = (Xn - X).norm();
+        double omega_star_norm = (Xn - Omega_star).norm();
 
         hist_hn(itr_count) = hn;
         hist_successive_norm(itr_count) = successive_norm;
         hist_norm(itr_count) = omega_star_norm;
         hist_iter_time(itr_count) = elapsed;
 
-        itr_count += 1;
-        if (logging_interval > 0 &itr_count % logging_interval == 0) {
+        itr_count++;
+        if (logging_interval > 0 && itr_count % logging_interval == 0)
             cout << "[ACCORD][" << current_time() << "] Iteration: " << itr_count << " | hn: " << hn << "\n";
-        }
 
-        // change termination contition (omega_star_norm -> successive_norm)
-        if (successive_norm < epstol || itr_count >= maxitr) {
-            if (itr_count <= maxitr) {
-                hist_hn(itr_count) = -1;
-                hist_successive_norm(itr_count) = -1;
-                hist_norm(itr_count) = -1;
-                hist_iter_time(itr_count) = -1;
-            }
-            break;
-        } else {
-            h1 = h1n;
-            X = Xn;
-            W = Wn;
-        }
+        if (successive_norm < epstol || itr_count >= maxitr) break;
 
+        X = Xn;
+        W = Wn;
     }
 
-    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << itr_count << " | hn: " << hn << "\n";
-
-    return Xn;
+    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << itr_count << " | hn: " << hist_hn(itr_count-1) << "\n";
+    return X.sparseView();
 }
 
-
-//////////// ACCORD-FBS with backtracking ////////////
 SparseMatrix<double> accord_fbs_backtracking(
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> S,
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> X_init,
@@ -277,113 +191,80 @@ SparseMatrix<double> accord_fbs_backtracking(
     Ref<VectorXd> hist_iter_time,
     int logging_interval
     ) {
-
     int p = S.cols();
+    
+    MatrixXd X = X_init;
+    MatrixXd W = X * S;
+    MatrixXd grad_h1 = W + lam2*X;
+    double h1 = 0.5 * (X.transpose() * W).trace() + 0.5 * lam2 * X.squaredNorm();
 
-    SparseMatrix<double> X(p, p), Xn(p, p); // current and next estimate
-    SparseMatrix<double> Step(p, p);        // Xn - X
-    MatrixXd W(p, p), Wn(p, p);             // X*S
-
-    MatrixXd grad_h1(p, p);                 // gradient of h1
-    MatrixXd tmp(p, p);
-    ArrayXd y(p);                           // diagonal elements
-
-    double Q, hn, h1, h1n, successive_norm, omega_star_norm;
+    int outer_itr_count, inner_itr_count;
     double c_ = 0.5;
-    double tau_;
-    double elapsed;
-
-    X = X_init.sparseView();
-    W = X * S;
-    grad_h1 = W + lam2 * X;                 // gradient
-    h1 = 0.5 * (SparseMatrix<double>(X.transpose())*W).trace() + 0.5*lam2*pow(X.norm(),2);
-
-    int outer_itr_count, inner_itr_count;   // iteration counts
-
     outer_itr_count = 0;
-    while (true) {
 
-        high_resolution_clock::time_point t1 = high_resolution_clock::now();
+    while(true) {
 
-        tau_ = 1.0;
-        inner_itr_count = 0;
-        while(true){
+      auto t1 = high_resolution_clock::now();
+      tau = 1.0;
+      inner_itr_count = 0;
 
-            tmp = MatrixXd(X) - tau_*grad_h1;
-            
-            if (penalize_diag == true) {
-                y = tmp.diagonal().array() - tau_*LambdaMat.diagonal().array();
-            } else {
-                y = tmp.diagonal().array();
-            }
+      MatrixXd Xn, Wn, Step;
+      double h1n;
+      ArrayXd ones = VectorXd::Ones(p).array(), y;
 
-            y = 0.5 * (y+(y.pow(2.0)+4*tau_*Eigen::VectorXd::Ones(p).array()).sqrt());
-            sthreshmat(tmp, tau_, LambdaMat);
-            tmp.diagonal() = y;
-            Xn = tmp.sparseView();
+      while(true) {
+        Xn = X - tau * grad_h1;
 
-            // backtracking line search bounded from below
-            if (tmp.diagonal().minCoeff() > 0) {
-
-                Step = Xn - X;
-                Wn = Xn * S;
-
-                h1n = 0.5*(SparseMatrix<double>(Xn.transpose())*Wn).trace() + 0.5*lam2*pow(Xn.norm(),2);
-                Q = h1 + Step.cwiseProduct(grad_h1).sum() + (0.5/tau_)*Step.squaredNorm();
-
-                if ((tau_ <= tau) || (h1n <= Q)){
-                    break;
-                }
-            }
-
-            tau_ *= c_;
-            inner_itr_count += 1;
-        }
-
-        high_resolution_clock::time_point t2 = high_resolution_clock::now();
-        duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-        elapsed = time_span.count();
-       
-        grad_h1 = Wn + lam2 * Xn;
-        hn = h1n - Xn.diagonal().array().log().sum() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
-        successive_norm = Step.norm();
-        omega_star_norm = (Xn - Omega_star).norm();
-
-        hist_inner_itr_count(outer_itr_count) = inner_itr_count;
-        hist_hn(outer_itr_count) = hn;
-        hist_successive_norm(outer_itr_count) = successive_norm;
-        hist_norm(outer_itr_count) = omega_star_norm;
-        hist_iter_time(outer_itr_count) = elapsed;
-        
-        outer_itr_count += 1;
-        if (logging_interval > 0 && outer_itr_count % logging_interval == 0) {
-            cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
-        }
-
-        // change termination contition (omega_star_norm -> successive_norm)
-        if (successive_norm < epstol || outer_itr_count >= maxitr) {
-            if (outer_itr_count <= maxitr) {
-                hist_inner_itr_count(outer_itr_count) = -1;
-                hist_hn(outer_itr_count) = -1;
-                hist_successive_norm(outer_itr_count) = -1;
-                hist_norm(outer_itr_count) = -1;
-                hist_iter_time(outer_itr_count) = -1;
-            }
-            break;
+        if (penalize_diag == true) {
+          y = Xn.diagonal().array() - tau*LambdaMat.diagonal().array();
         } else {
-            h1 = h1n;
-            X = Xn;
-            W = Wn;
+          y = Xn.diagonal().array();
         }
 
-    }
+        y = 0.5 * (y+(y.pow(2.0) + 4*tau*ones).sqrt());
+        sthreshmat(Xn, tau, LambdaMat);
+        Xn.diagonal() = y;
 
-    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hn << "\n";
+        if (Xn.diagonal().minCoeff() > 0) {
+          Step = Xn - X;
+          Wn = Xn * S;
+          h1n = 0.5 * (Xn.transpose() * Wn).trace() + 0.5 * lam2 * Xn.squaredNorm();
+          double Q = h1 + Step.cwiseProduct(grad_h1).sum() + 0.5 / tau * Step.squaredNorm();
+          if (h1n <= Q) break;
+        }
+        tau *= c_;
+        inner_itr_count++;
+      }
 
-    return Xn;
+      auto t2 = high_resolution_clock::now();
+      double elapsed = duration_cast<duration<double>>(t2 - t1).count();
+
+      grad_h1 = Wn + lam2 * Xn;
+      double hn = h1n - Xn.diagonal().array().log().sum() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
+      double successive_norm = Step.norm();
+      double omega_star_norm = (Xn - Omega_star).norm();
+
+      hist_inner_itr_count(outer_itr_count) = inner_itr_count;
+      hist_hn(outer_itr_count) = hn;
+      hist_successive_norm(outer_itr_count) = successive_norm;
+      hist_norm(outer_itr_count) = omega_star_norm;
+      hist_iter_time(outer_itr_count) = elapsed;
+
+      outer_itr_count++;
+      if (logging_interval > 0 && outer_itr_count % logging_interval == 0)
+          cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
+
+      if (successive_norm < epstol || outer_itr_count >= maxitr) break;
+
+      X = Xn;
+      W = Wn;
+      h1 = h1n;
+  }
+
+    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hist_hn(outer_itr_count-1) << "\n";
+    return X.sparseView();
 }
 
-//////////// ACCORD-FBS with constant step size ////////////
 SparseMatrix<double> accord_fbs_constant(
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> S,
     Ref<MatrixXd, 0, Stride<Dynamic, Dynamic>> X_init,
@@ -403,76 +284,56 @@ SparseMatrix<double> accord_fbs_constant(
 
     int p = S.cols();
 
-    SparseMatrix<double> X(p, p), Xn(p, p); // current and next estimate
-    MatrixXd W(p, p), Wn(p, p);             // X*S
+    MatrixXd X = X_init;
+    MatrixXd W = X * S;
+    MatrixXd grad_h1 = W + lam2*X;
+    ArrayXd ones = VectorXd::Ones(p).array(), y;
 
-    MatrixXd grad_h1(p, p);                 // gradient of h1
-    MatrixXd tmp(p, p);
-    ArrayXd y(p);                           // diagonal elements
-
-    double hn, successive_norm, omega_star_norm;
-    double elapsed;
-
-    X = X_init.sparseView();
-    W = X * S;
-    grad_h1 = W + lam2 * X;             // new gradient with l2-regularization
-
-    int itr_count;                          // iteration counts
-
+    int itr_count;
+    
     itr_count = 0;
-    while (true) {
+    while(true) {
 
-        high_resolution_clock::time_point t1 = high_resolution_clock::now();
+      auto t1 = high_resolution_clock::now();
+      MatrixXd Xn, Wn, Step;
 
-        tmp = MatrixXd(X) - tau*grad_h1;
+      Xn = X - tau * grad_h1;
 
-        if (penalize_diag == true) {
-            y = tmp.diagonal().array() - tau*LambdaMat.diagonal().array();
-        } else {
-            y = tmp.diagonal().array();
-        }
+      if (penalize_diag == true) {
+        y = Xn.diagonal().array() - tau*LambdaMat.diagonal().array();
+      } else {
+        y = Xn.diagonal().array();
+      }
 
-        y = 0.5 * (y+(y.pow(2.0)+4*tau*Eigen::VectorXd::Ones(p).array()).sqrt());
-        sthreshmat(tmp, tau, LambdaMat);
-        tmp.diagonal() = y;
-        Xn = tmp.sparseView();
+      y = 0.5 * (y+(y.pow(2.0) + 4*tau*ones).sqrt());
+      sthreshmat(Xn, tau, LambdaMat);
+      Xn.diagonal() = y;
 
-        high_resolution_clock::time_point t2 = high_resolution_clock::now();
-        duration<double> time_span = duration_cast<duration<double>>(t2 - t1);
-        elapsed = time_span.count();
-       
-        Wn = Xn * S;
-        grad_h1 = Wn + lam2 * Xn;
-        hn = - Xn.diagonal().array().log().sum() + 0.5*(SparseMatrix<double>(Xn.transpose())*Wn).trace() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum() + 0.5*lam2*pow(Xn.norm(),2);
-        successive_norm = (Xn - X).norm();
-        omega_star_norm = (Xn - Omega_star).norm();
+      auto t2 = high_resolution_clock::now();
+      double elapsed = duration_cast<duration<double>>(t2 - t1).count();
 
-        hist_hn(itr_count) = hn;
-        hist_successive_norm(itr_count) = successive_norm;
-        hist_norm(itr_count) = omega_star_norm;
-        hist_iter_time(itr_count) = elapsed;
-        
-        itr_count += 1;
-        if (logging_interval > 0 &itr_count % logging_interval == 0) {
-            cout << "[ACCORD][" << current_time() << "] Iteration: " << itr_count << " | hn: " << hn << "\n";
-        }
+      Wn = Xn * S;
+      grad_h1 = Wn + lam2 * Xn;
+      double hn = -Xn.diagonal().array().log().sum() + 0.5*(Xn.transpose()*Wn).trace() +
+                  Xn.cwiseAbs().cwiseProduct(LambdaMat).sum() + 0.5*lam2*Xn.squaredNorm();
+      double successive_norm = (Xn - X).norm();
+      double omega_star_norm = (Xn - Omega_star).norm();
 
-        // change termination contition (omega_star_norm -> successive_norm)
-        if (successive_norm < epstol || itr_count >= maxitr) {
-            if (itr_count <= maxitr) {
-                hist_hn(itr_count) = -1;
-                hist_successive_norm(itr_count) = -1;
-                hist_norm(itr_count) = -1;
-                hist_iter_time(itr_count) = -1;
-            }
-            break;
-        } else {
-            X = Xn;
-            W = Wn;
-        }
-    }
+      hist_hn(itr_count) = hn;
+      hist_successive_norm(itr_count) = successive_norm;
+      hist_norm(itr_count) = omega_star_norm;
+      hist_iter_time(itr_count) = elapsed;
 
-    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << itr_count << " | hn: " << hn << "\n";
+      itr_count++;
+      if (logging_interval > 0 && itr_count % logging_interval == 0)
+          cout << "[ACCORD][" << current_time() << "] Iteration: " << itr_count << " | hn: " << hn << "\n";
 
-    return Xn;
+      if (successive_norm < epstol || itr_count >= maxitr) break;
+
+      X = Xn;
+      W = Wn;
+  }
+
+  cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << itr_count << " | hn: " << hist_hn(itr_count-1) << "\n";
+  return X.sparseView();
 }

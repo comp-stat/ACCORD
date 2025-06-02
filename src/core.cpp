@@ -52,65 +52,70 @@ SparseMatrix<double> accord_ista_backtracking(
     Ref<VectorXd> hist_successive_norm,
     Ref<VectorXd> hist_norm,
     Ref<VectorXd> hist_iter_time,
-    int logging_interval
-) {
-    MatrixXd X = X_init;
-    MatrixXd W = X * S;
-    MatrixXd grad_h1 = compute_ista_grad_h1(X, W, lam2);
-    double h1 = -X.diagonal().array().log().sum() + 0.5 * (X.transpose() * W).trace() + 0.5 * lam2 * X.squaredNorm();
+    int logging_interval) {
 
-    int outer_itr_count = 0;
+  // Compute variables using at intial point
+  MatrixXd X = X_init;
+  MatrixXd W = X * S;
+  MatrixXd grad_h1 = compute_ista_grad_h1(X, W, lam2);
+  double h1 = -X.diagonal().array().log().sum() + 0.5 * (X.transpose() * W).trace() +
+    0.5 * lam2 * X.squaredNorm();
+
+  int outer_itr_count = 0;
+
+  while (true) {
+    auto t1 = high_resolution_clock::now();
+    int inner_itr_count = 0;
     double tau = 0.5, c_ = 0.5;
 
+    // Inner iteration for line search
+    MatrixXd Xn, Wn, Step;
+    double h1n;
     while (true) {
-        auto t1 = high_resolution_clock::now();
+        Xn = X - tau * grad_h1;
+        sthreshmat(Xn, tau, LambdaMat);
 
-        MatrixXd Xn, Wn, Step;
-        double h1n;
-        int inner_itr_count = 0;
+        if (Xn.diagonal().minCoeff() > 0) {
+            Wn = Xn * S;
+            h1n = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() + 
+                  0.5 * lam2 * Xn.squaredNorm();
 
-        while (true) {
-            Xn = X - tau * grad_h1;
-            sthreshmat(Xn, tau, LambdaMat);
+            Step = Xn - X;
+            double Q = h1 + Step.cwiseProduct(grad_h1).sum() + 0.5 / tau * Step.squaredNorm();
 
-            if (Xn.diagonal().minCoeff() > 0) {
-                Wn = Xn * S;
-                h1n = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() + 0.5 * lam2 * Xn.squaredNorm();
-                Step = Xn - X;
-                double Q = h1 + Step.cwiseProduct(grad_h1).sum() + 0.5 / tau * Step.squaredNorm();
-                if (h1n <= Q) break;
-            }
-            tau *= c_;
-            inner_itr_count++;
+            if (h1n <= Q) break;
         }
-
-        auto t2 = high_resolution_clock::now();
-        double elapsed = duration_cast<duration<double>>(t2 - t1).count();
-
-        grad_h1 = compute_ista_grad_h1(Xn, Wn, lam2);
-        double hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
-        double successive_norm = (Xn - X).norm();
-        double omega_star_norm = (Xn - Omega_star).norm();
-
-        hist_inner_itr_count(outer_itr_count) = inner_itr_count;
-        hist_hn(outer_itr_count) = hn;
-        hist_successive_norm(outer_itr_count) = successive_norm;
-        hist_norm(outer_itr_count) = omega_star_norm;
-        hist_iter_time(outer_itr_count) = elapsed;
-
-        outer_itr_count++;
-        if (logging_interval > 0 && outer_itr_count % logging_interval == 0)
-            cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
-
-        if (successive_norm < epstol || outer_itr_count >= maxitr) break;
-
-        X = Xn;
-        W = Wn;
-        h1 = h1n;
+        tau *= c_;
+        inner_itr_count++;
     }
 
-    cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hist_hn(outer_itr_count-1) << "\n";
-    return X.sparseView();
+    auto t2 = high_resolution_clock::now();
+    double elapsed = duration_cast<duration<double>>(t2 - t1).count();
+
+    grad_h1 = compute_ista_grad_h1(Xn, Wn, lam2);
+    double hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
+    double successive_norm = Step.norm();
+    double omega_star_norm = (Xn - Omega_star).norm();
+
+    hist_inner_itr_count(outer_itr_count) = inner_itr_count;
+    hist_hn(outer_itr_count) = hn;
+    hist_successive_norm(outer_itr_count) = successive_norm;
+    hist_norm(outer_itr_count) = omega_star_norm;
+    hist_iter_time(outer_itr_count) = elapsed;
+
+    outer_itr_count++;
+    if (logging_interval > 0 && outer_itr_count % logging_interval == 0)
+        cout << "[ACCORD][" << current_time() << "] Iteration: " << outer_itr_count << " | hn: " << hn << "\n";
+
+    if (successive_norm < epstol || outer_itr_count >= maxitr) break;
+
+    X = Xn;
+    W = Wn;
+    h1 = h1n;
+  }
+
+  cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << outer_itr_count << " | hn: " << hist_hn(outer_itr_count-1) << "\n";
+  return X.sparseView();
 }
 
 SparseMatrix<double> accord_ista_constant(
@@ -131,7 +136,6 @@ SparseMatrix<double> accord_ista_constant(
     MatrixXd X = X_init;
     MatrixXd W = X * S;
     MatrixXd grad_h1 = compute_ista_grad_h1(X, W, lam2);
-    double h1;
 
     int itr_count = 0;
     while (true) {
@@ -141,13 +145,13 @@ SparseMatrix<double> accord_ista_constant(
         sthreshmat(Xn, tau, LambdaMat);
         MatrixXd Step = Xn - X;
         MatrixXd Wn = Xn * S;
-        double h1n = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() + 0.5 * lam2 * Xn.squaredNorm();
 
         auto t2 = high_resolution_clock::now();
         double elapsed = duration_cast<duration<double>>(t2 - t1).count();
 
         grad_h1 = compute_ista_grad_h1(Xn, Wn, lam2);
-        double hn = h1n + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
+        double hn = -Xn.diagonal().array().log().sum() + 0.5 * (Xn.transpose() * Wn).trace() +
+                    0.5 * lam2 * Xn.squaredNorm() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
         double successive_norm = (Xn - X).norm();
         double omega_star_norm = (Xn - Omega_star).norm();
 
@@ -164,7 +168,6 @@ SparseMatrix<double> accord_ista_constant(
 
         X = Xn;
         W = Wn;
-        h1 = h1n;
     }
 
     cout << "[ACCORD][" << current_time() << "] Total Iteration Count: " << itr_count << " | hn: " << hist_hn(itr_count-1) << "\n";
@@ -202,12 +205,12 @@ SparseMatrix<double> accord_fbs_backtracking(
     while(true) {
 
       auto t1 = high_resolution_clock::now();
-      MatrixXd Xn, Wn, Step;
-      double h1n;
-      ArrayXd y;
-
       tau = 1.0;
       inner_itr_count = 0;
+
+      MatrixXd Xn, Wn, Step;
+      double h1n;
+      ArrayXd ones = VectorXd::Ones(p).array(), y;
 
       while(true) {
         Xn = X - tau * grad_h1;
@@ -218,7 +221,7 @@ SparseMatrix<double> accord_fbs_backtracking(
           y = Xn.diagonal().array();
         }
 
-        y = 0.5 * (y+(y.pow(2.0) + 4*tau*VectorXd::Ones(p).array()).sqrt());
+        y = 0.5 * (y+(y.pow(2.0) + 4*tau*ones).sqrt());
         sthreshmat(Xn, tau, LambdaMat);
         Xn.diagonal() = y;
 
@@ -238,7 +241,7 @@ SparseMatrix<double> accord_fbs_backtracking(
 
       grad_h1 = Wn + lam2 * Xn;
       double hn = h1n - Xn.diagonal().array().log().sum() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum();
-      double successive_norm = (Xn - X).norm();
+      double successive_norm = Step.norm();
       double omega_star_norm = (Xn - Omega_star).norm();
 
       hist_inner_itr_count(outer_itr_count) = inner_itr_count;
@@ -284,7 +287,7 @@ SparseMatrix<double> accord_fbs_constant(
     MatrixXd X = X_init;
     MatrixXd W = X * S;
     MatrixXd grad_h1 = W + lam2*X;
-    ArrayXd y;
+    ArrayXd ones = VectorXd::Ones(p).array(), y;
 
     int itr_count;
     
@@ -302,7 +305,7 @@ SparseMatrix<double> accord_fbs_constant(
         y = Xn.diagonal().array();
       }
 
-      y = 0.5 * (y+(y.pow(2.0) + 4*tau*VectorXd::Ones(p).array()).sqrt());
+      y = 0.5 * (y+(y.pow(2.0) + 4*tau*ones).sqrt());
       sthreshmat(Xn, tau, LambdaMat);
       Xn.diagonal() = y;
 
@@ -311,7 +314,8 @@ SparseMatrix<double> accord_fbs_constant(
 
       Wn = Xn * S;
       grad_h1 = Wn + lam2 * Xn;
-      double hn = - Xn.diagonal().array().log().sum() + 0.5*(Xn.transpose()*Wn).trace() + Xn.cwiseAbs().cwiseProduct(LambdaMat).sum() + 0.5*lam2*Xn.squaredNorm();
+      double hn = -Xn.diagonal().array().log().sum() + 0.5*(Xn.transpose()*Wn).trace() +
+                  Xn.cwiseAbs().cwiseProduct(LambdaMat).sum() + 0.5*lam2*Xn.squaredNorm();
       double successive_norm = (Xn - X).norm();
       double omega_star_norm = (Xn - Omega_star).norm();
 

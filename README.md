@@ -1,8 +1,9 @@
 ACCORD Software
 ===============
 
-![Build](https://github.com/gardenk11181/ACCORD/actions/workflows/python-package.yml/badge.svg)
-![Format](https://github.com/gardenk11181/ACCORD/actions/workflows/auto-format.yml/badge.svg)
+[![Build](https://github.com/comp-stat/ACCORD/actions/workflows/python-package.yml/badge.svg?branch=main)](https://github.com/comp-stat/ACCORD/actions/workflows/python-package.yml)
+[![Format](https://github.com/comp-stat/ACCORD/actions/workflows/auto-format.yml/badge.svg?branch=main)](https://github.com/comp-stat/ACCORD/actions/workflows/auto-format.yml)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://ghcr.io/comp-stat/accord)
 
 This repository provides a command-line interface and C++ backend for ACCORD algorithm from the following paper.
 
@@ -21,7 +22,7 @@ source .venv/bin/activate
 
 After activating the environment, install the package using the following command:
 ```bash
-pip install git+https://github.com/comp-stat/ACCORD.git@v1.1.3
+pip install git+https://github.com/comp-stat/ACCORD.git@v1.1.4
 ```
 
 How to Run

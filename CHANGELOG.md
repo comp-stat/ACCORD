@@ -1,3 +1,7 @@
+## [1.1.4] - 2025-06-02
+### Modified
+- Refactored to avoid sparseView(); further enhancement will follow.
+
 ## [1.1.3] - 2025-05-26
 ### Modified
 - Save only the upper triangular part of the main output file.

@@ -1,0 +1,56 @@
+name: Build and Push Multi-Arch Accord Image
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract tag version
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Set up QEMU (for cross-compilation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 🔸 TEST BUILD (amd64 only, not pushed)
+      - name: Build test image (amd64 only)
+        uses: docker/build-push-action@v5
+        with:
+          push: false          # GHCR로 안 보냄
+          load: true           # 로컬 Docker에 로드 → run 가능
+          platforms: linux/amd64
+          tags: accord:test    # 로컬 테스트용 태그
+
+      # 🔸 SMOKE TEST
+      - name: Run accord --help to verify CLI works
+        run: docker run --rm accord:test --help
+
+      # 🔸 FINAL MULTI-ARCH PUSH
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/accord:${{ env.TAG }}
+            ghcr.io/${{ github.repository_owner }}/accord:latest
+          platforms: linux/amd64,linux/arm64

@@ -32,25 +32,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 🔸 TEST BUILD (amd64 only, not pushed)
-      - name: Build test image (amd64 only)
+      # 🔸 TEST BUILD (local-only, not affecting GHCR manifest)
+      - name: Build and load amd64 image locally
         uses: docker/build-push-action@v5
         with:
-          push: false          # GHCR로 안 보냄
-          load: true           # 로컬 Docker에 로드 → run 가능
+          push: false
+          load: true
           platforms: linux/amd64
-          tags: accord:test    # 로컬 테스트용 태그
+          tags: accord-test:local
 
-      # 🔸 SMOKE TEST
-      - name: Run accord --help to verify CLI works
-        run: docker run --rm accord:test --help
+      - name: Test for calling help
+        run: docker run --rm accord-test:local --help
 
-      # 🔸 FINAL MULTI-ARCH PUSH
-      - name: Build and push multi-arch image
+      # 🔸 CLEAN MULTI-ARCH PUSH (no overlap with local test tag)
+      - name: Build and push multi-arch image to GHCR
         uses: docker/build-push-action@v5
         with:
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ github.repository_owner }}/accord:${{ env.TAG }}
             ghcr.io/${{ github.repository_owner }}/accord:latest
-          platforms: linux/amd64,linux/arm64
